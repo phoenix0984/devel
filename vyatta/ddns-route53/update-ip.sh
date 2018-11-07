@@ -56,7 +56,7 @@ if [ "$current_ip" = "$rrset_ip" ] && [ "$ttl" = "$rrset_ttl" ]
   exit 0
 fi
 
-update_cmd="/config/scripts/route53-ddns.py"
+update_cmd="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )/route53-ddns.py"
 
 ${update_cmd} \
   --domain="${fqdn}" \
