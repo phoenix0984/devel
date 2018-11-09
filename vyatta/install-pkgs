@@ -1,24 +1,24 @@
 #!/bin/bash
-packages='nano dnsutils'
-pkgs='/var/lib/installed-pkgs'
+packages="nano dnsutils"
+pkgs="/var/lib/installed-pkgs"
 
-if [ -e $pkgs ]; then
+if [[ -e ${pkgs} ]]; then
   logger -s "Packages already installed. Quitting."
   exit 0
 fi
 
 mount -t tmpfs -o size=30% tmpfs /var/lib/apt/lists
 
-if [ $? != 0 ]; then
+if [[ $? != 0 ]]; then
   logger -s "Could not mount tmpfs on /var/lib/apt/lists"
   exit 1
 fi
 
-apt-get update && apt-get --no-install-recommends install -y $packages
+apt-get update && apt-get --no-install-recommends install -y ${packages}
 
-if [ $? == 0 ]; then
+if [[ $? == 0 ]]; then
   logger -s "Package install successful"
-  dpkg -l >$pkgs
+  dpkg -l >${pkgs}
 else
   logger -s "Package install failed"
 fi
