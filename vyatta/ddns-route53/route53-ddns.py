@@ -48,9 +48,8 @@ parser.add_option('--fqdn', dest='fqdn',
                   help='Fully qualified Domain name to update. Required.')
 parser.add_option('--zone-id', dest='zone_id',
                   help='Amazon zone ID containing domain name. Required.')
-parser.add_option('--ip', dest='ip', help='New IPv4 for domain name, '
-                  '"iface" to attempt to auto-detect or '
-                  '"nat" if the device is behind NAT.')
+parser.add_option('--ip', dest='ip',
+                  help='New IPv4 for domain name.')
 parser.add_option('--quiet', '-q', dest='quiet', default=False,
                   action="store_true",
                   help="Don't output to stdout unless there is an error.")
