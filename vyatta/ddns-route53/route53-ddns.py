@@ -284,27 +284,6 @@ def upsert_rrset():
 
 
 if __name__ == '__main__':
-    if opts.syslog:
-        syslog.openlog('route53-ddns')
-
-    if (not opts.key_id or not opts.key_secret or not opts.fqdn or
-        not opts.zone_id or not opts.ip):
-        print >>sys.stderr, ('--amz-key-id, --amz-key-secret, --fqdn, --zone-id, '
-                            'and --ip are required.\n')
-        usage()
-
-    if opts.quiet and opts.verbose:
-        print >>sys.stderr, '--quiet and --verbose are mutually exclusive.'
-        usage()
-
-    if not fqdn.endswith('.'):
-        print >>sys.stderr, '--fqdn should be fully-qualified and end with a dot.'
-        usage()
-
-    if (opts.ip == opts.dns_ip or opts.ttl == opts.dns_ttl):
-        log('Old IP %s and TTL %s did not change. Quitting.' % (opts.dns_ip, opts.dns_ttl))
-        sys.exit(0)
-
     # Define global variables
     smtp_server = opts.smtp_server
     smtp_port   = opts.smtp_port
@@ -324,6 +303,27 @@ if __name__ == '__main__':
     new_ttl     = opts.ttl
 
     time_str    = get_time()
+
+    if opts.syslog:
+        syslog.openlog('route53-ddns')
+
+    if (not opts.key_id or not opts.key_secret or not opts.fqdn or
+        not opts.zone_id or not opts.ip):
+        print >>sys.stderr, ('--amz-key-id, --amz-key-secret, --fqdn, --zone-id, '
+                            'and --ip are required.\n')
+        usage()
+
+    if opts.quiet and opts.verbose:
+        print >>sys.stderr, '--quiet and --verbose are mutually exclusive.'
+        usage()
+
+    if not opts.fqdn.endswith('.'):
+        print >>sys.stderr, '--fqdn should be fully-qualified and end with a dot.'
+        usage()
+
+    if (opts.ip == opts.dns_ip and opts.ttl == opts.dns_ttl):
+        log('Old IP %s and TTL %s did not change. Quitting.' % (opts.dns_ip, opts.dns_ttl))
+        sys.exit(0)
 
     upsert_rrset()
     send_mail(smtp_server, smtp_port, from_addr,
