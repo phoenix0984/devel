@@ -17,12 +17,8 @@
 # Wed Nov 07 11:22:03 CET
 # -----------------------------------------------------------------
 
-from xml.etree import ElementTree
-from email.MIMEMultipart import MIMEMultipart
-from email.MIMEText import MIMEText
-from email.MIMEBase import MIMEBase
-from email import encoders
-import smtplib
+import os
+import sys
 import re
 import base64
 import hashlib
@@ -30,8 +26,18 @@ import hmac
 import httplib
 import optparse
 import socket
-import sys
 import syslog
+import smtplib
+import mimetypes
+
+from optparse import OptionParser
+from xml.etree import ElementTree
+from email.message import Message
+from email.mime.audio import MIMEAudio
+from email.mime.base import MIMEBase
+from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 parser = optparse.OptionParser()
 parser.add_option('--amz-key-id', dest='key_id',
@@ -280,7 +286,6 @@ def upsert_rrset():
         raise RuntimeError(
             'Did not receive correct change response from Route 53. Response: %s',
             response_val)
-        sys.exit(0)
 
 
 if __name__ == '__main__':
