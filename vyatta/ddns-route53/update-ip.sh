@@ -49,12 +49,6 @@ rrset=$(dig +norecurse @"${dns_ns}" "${fqdn}")
 rrset_ttl=$(awk '{print $2}' <<< "${rrset_noall}")
 rrset_ip=$(awk '{print $5}' <<< "${rrset_noall}")
 
-# Check if either one of IP or TTL changed:
-if [[ "${current_ip}" = "${rrset_ip}" ]] && [[ "${ttl}" = "${rrset_ttl}" ]]; then
-  logger -s "Old IP "${rrset_ip}" and TTL "${rrset_ttl}" did not change. Quitting."
-  exit 0
-fi
-
 # ======================================================================= #
 
 smtp_server="changeme"
@@ -72,7 +66,7 @@ msg_body="${rrset}"
 update_cmd="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )/route53-ddns.py"
 
 ${update_cmd} \
-  --domain="${fqdn}" \
+  --fqdn="${fqdn}" \
   --zone-id="${zone_id}" \
   --amz-key-id="${key_id}" \
   --amz-key-secret="${key_secret}" \
