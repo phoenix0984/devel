@@ -245,6 +245,7 @@ def slack_webhook():
     connection.request('POST', webhook, slack_data, slack_headers)
     response = connection.getresponse()
     response_val = response.read()
+    vlog('Response:\n%s' % response_val)
 
     if response.status != httplib.OK:
         raise RuntimeError(
