@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# -----------------------------------------------------------------
 # route53-ddns.py -- Updates a DNS record in Amazon's Route 53.
 #
 # See documentation here:
@@ -11,13 +10,8 @@
 # License as published by the Free Software Foundation; either version 2
 # of the License, or (at your option) any later version.
 #
-# This script heavily depends on the work of Michael Kelly (michael@michaelkelly.org)
-# All kudos to him. Go and visit his repo here: https://github.com/mjkelly/experiments
-#
-# Wed Nov 07 11:22:03 CET
-# -----------------------------------------------------------------
+# Special thanks go to Michael Kelly (https://github.com/mjkelly/experiments)
 
-import os
 import sys
 import re
 import base64
@@ -28,16 +22,11 @@ import optparse
 import socket
 import syslog
 import smtplib
-import mimetypes
+import json
+import time
 
 from optparse import OptionParser
 from xml.etree import ElementTree
-from email.message import Message
-from email.mime.audio import MIMEAudio
-from email.mime.base import MIMEBase
-from email.mime.image import MIMEImage
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 parser = optparse.OptionParser()
 parser.add_option('--amz-key-id', dest='key_id',
@@ -64,28 +53,16 @@ parser.add_option('--syslog', '-s', dest='syslog', default=False,
                   help="Send output to syslog")
 parser.add_option('--ttl', dest='ttl', default="3600",
                   help="Specify TTL Value for the RRset")
+parser.add_option('--dns_ns', dest='dns_ns',
+                  help="Specify authoritative Nameserver")
 parser.add_option('--dns_ip', dest='dns_ip',
                   help="Specify old IP address of RRset")
 parser.add_option('--dns_ttl', dest='dns_ttl',
                   help="Specify old TTL value of RRset")
-parser.add_option('--smtp_server', dest='smtp_server',
-                  help="Specify SMTP server")
-parser.add_option('--smtp_port', dest='smtp_port', default="587",
-                  help="Specify SMTP server port")
-parser.add_option('--starttls', dest='starttls', default="True",
-                  help="Use starttls as boolean")
-parser.add_option('--from_addr', dest='from_addr',
-                  help="Specify From address 'Your Name <from_addr@example.com>'")
-parser.add_option('--from_pass', dest='from_pass',
-                  help="Specify SMTP Login password")
-parser.add_option('--to_addr', dest='to_addr',
-                  help="Specify comma seperated list of recipients")
-parser.add_option('--cc_addr', dest='cc_addr',
-                  help="Specify comma seperated list of cc-recipients")
-parser.add_option('--msg_subj', dest='msg_subj',
-                  help="Specify the subject of the mail")
-parser.add_option('--msg_body', dest='msg_body',
-                  help="Specify the body of the mail")
+parser.add_option('--webhook', dest='webhook',
+                  help="Slack Webhook URL '/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'")
+parser.add_option('--webhook_author', dest='webhook_author',
+                  help="Slack Author to appear in the message")
 opts, _ = parser.parse_args()
 
 AMAZON_NS = 'https://route53.amazonaws.com/doc/2012-02-29/'
@@ -123,44 +100,6 @@ BODY_FORMAT = """<?xml version="1.0" encoding="UTF-8"?>
 def usage():
     parser.print_help()
     sys.exit(2)
-
-
-def send_mail(smtp_server, smtp_port, from_addr,
-              from_pass, to_addr, cc_addr, msg_subj, msg_body):
-    """ Take arguments from calling bash script and send mail to recepients.
-
-    """
-    m = MIMEMultipart()
-
-    m['From'] = from_addr
-    m['To'] = to_addr
-    m['Cc'] = cc_addr
-    m['Subject'] = msg_subj
-
-    body = msg_body
-
-    m.attach(MIMEText(body, 'plain'))
-
-    # Disable file attachements for now...
-    #  file = "filename"
-    #  fp = open("/path/to/file", "rb")
-
-    #  p = MIMEBase('application', 'octet-stream')
-    #  p.set_payload((fp).read())
-    #  encoders.encode_base64(p)
-    #  p.add_header('Content-Disposition', "attachment; filename= %s" % file)
-
-    #  m.attach(p)
-
-    # Convert the from address to a valid login literal
-    rfc_from = re.search(r"\<(.*)\>", from_addr).group(1)
-
-    s = smtplib.SMTP(smtp_server, smtp_port)
-    if opts.starttls == "True":
-        s.starttls()
-    s.login(rfc_from, from_pass)
-    s.sendmail(from_addr, to_addr.split(", ") + cc_addr.split(", "), m.as_string())
-    s.quit()
 
 
 def log(msg):
@@ -242,13 +181,11 @@ def upsert_rrset():
     vlog('Will set %r to %r with TTL of %r' % (fqdn, new_ip, new_ttl))
 
     auth = make_auth(time_str, key_id, secret)
-    headers = {
-        'X-Amz-Date': time_str,
+    headers = {'X-Amz-Date': time_str, 'X-Amzn-Authorization': auth}
 
-        'X-Amzn-Authorization': auth,
-    }
     # Path for GET request to list existing record only.
     get_rrset_path = '/2012-02-29/hostedzone/%s/rrset?name=%s&type=A&maxitems=1' % (zone_id, fqdn)
+
     # Path for POST request to update record.
     change_rrset_path = '/2012-02-29/hostedzone/%s/rrset' % zone_id
 
@@ -287,24 +224,48 @@ def upsert_rrset():
             response_val)
 
 
+def slack_webhook():
+    slack_data = json.dumps({
+        "attachments": [{
+            "mrkdwn": "true",
+            "author_name": webhook_author,
+            "fallback": "## DNS Update received\n",
+            "pretext": "`## Route53 DynDNS activity` :satellite_antenna:",
+            "title": "DNS Update pushed via " + dns_ns,
+            "text": "*User:* " + fqdn.split('.')[0].title() +"\n*Old IP:* " + dns_ip + "\n*Current IP:* " + new_ip,
+            "footer": "Slack API",
+            "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png",
+            "ts": int(time.time()),
+            "color": "#7CD197",
+        }]
+    }, indent=4)
+    slack_headers = {'Content-Type': 'application/json', 'Accept': 'text/plain'}
+
+    connection = httplib.HTTPSConnection('hooks.slack.com')
+    connection.request('POST', webhook, slack_data, slack_headers)
+    response = connection.getresponse()
+    response_val = response.read()
+
+    if response.status != httplib.OK:
+        raise RuntimeError(
+            'Request to slack returned an error %s, the response is:\n%s'
+            % (response.status, response.text)
+        )
+
+
 if __name__ == '__main__':
     # Define global variables
-    smtp_server = opts.smtp_server
-    smtp_port   = opts.smtp_port
-    from_addr   = opts.from_addr
-    from_pass   = opts.from_pass
-    to_addr     = opts.to_addr
-    cc_addr     = opts.cc_addr
-    msg_subj    = opts.msg_subj
-    msg_body    = opts.msg_body
-    key_id      = opts.key_id
-    secret      = opts.key_secret
-    zone_id     = opts.zone_id
-    fqdn        = opts.fqdn
-    dns_ip      = opts.dns_ip
-    new_ip      = opts.ip
-    dns_ttl     = opts.dns_ttl
-    new_ttl     = opts.ttl
+    fqdn           = opts.fqdn
+    key_id         = opts.key_id
+    secret         = opts.key_secret
+    dns_ns         = opts.dns_ns
+    dns_ip         = opts.dns_ip
+    new_ip         = opts.ip
+    zone_id        = opts.zone_id
+    dns_ttl        = opts.dns_ttl
+    new_ttl        = opts.ttl
+    webhook        = opts.webhook
+    webhook_author = opts.webhook_author
 
     time_str    = get_time()
 
@@ -328,9 +289,9 @@ if __name__ == '__main__':
     if (opts.ip == opts.dns_ip and opts.ttl == opts.dns_ttl):
         log('Old IP %s and TTL %s did not change. Quitting.' % (opts.dns_ip, opts.dns_ttl))
         sys.exit(0)
-
-    upsert_rrset()
-    send_mail(smtp_server, smtp_port, from_addr,
-              from_pass, to_addr, cc_addr, msg_subj, msg_body)
-else:
-    sys.exit(0)
+    try:
+        upsert_rrset()
+        slack_webhook()
+    except Exception as e:
+        print(e)
+        sys.exit(1)

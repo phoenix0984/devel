@@ -9,12 +9,9 @@
 # License as published by the Free Software Foundation; either version 2
 # of the License, or (at your option) any later version.
 #
-# This script heavily depends on the work of Michael Kelly (michael@michaelkelly.org)
-# All kudos to him. Go and visit his repo here: https://github.com/mjkelly/experiments
-#
-# Wed Nov 07 11:22:03 CET
+# Special thanks go to Michael Kelly (https://github.com/mjkelly/experiments)
 
-# ======================================================================= #
+# ==============================CHANGE FROM HERE============================== #
 
 domain="changeme"
 host="changeme"
@@ -22,8 +19,10 @@ ttl="changeme"
 zone_id="changeme"
 key_id="changeme"
 key_secret="changeme"
+webhook_url="/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+webhook_author="<@changeme>"
 
-# ======================================================================= #
+# ===================DO NOT CHANGE ANYTHING BELOW THAT LINE=================== #
 
 if [[ $(dpkg-query -W -f='${Status}' dnsutils 2>/dev/null | grep -c "ok installed") -eq 0 ]]; then
   logger -s "Package dnsutils not installed. Quitting."
@@ -45,23 +44,8 @@ dns_ns=$(dig +short SOA "${domain}" | awk '{print $1}')
 
 # Get the actual RRset from NS
 rrset_noall=$(dig +nocmd +noall +answer @"${dns_ns}" "${fqdn}")
-rrset=$(dig +norecurse @"${dns_ns}" "${fqdn}")
 rrset_ttl=$(awk '{print $2}' <<< "${rrset_noall}")
 rrset_ip=$(awk '{print $5}' <<< "${rrset_noall}")
-
-# ======================================================================= #
-
-smtp_server="changeme"
-smtp_port="changeme"
-use_starttls="changeme"
-from_addr="changeme"
-from_pass="changeme"
-to_addr="changeme"
-cc_addr="changeme"
-msg_subj="Update received: "${fqdn}" updated to "${current_ip}" TTL: "${ttl}""
-msg_body="${rrset}"
-
-# ======================================================================= #
 
 update_cmd="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )/route53-ddns.py"
 
@@ -72,16 +56,10 @@ ${update_cmd} \
   --amz-key-secret="${key_secret}" \
   --ip="${current_ip}" \
   --ttl="${ttl}"\
+  --dns_ns="${dns_ns}"\
   --dns_ttl="${rrset_ttl}"\
   --dns_ip="${rrset_ip}"\
-  --smtp_server="${smtp_server}"\
-  --smtp_port="${smtp_port}"\
-  --starttls="${use_starttls}"\
-  --from_addr="${from_addr}"\
-  --from_pass="${from_pass}"\
-  --to_addr="${to_addr}"\
-  --cc_addr="${cc_addr}"\
-  --msg_subj="${msg_subj}"\
-  --msg_body="${msg_body}"\
+  --webhook="${webhook_url}"\
+  --webhook_author="${webhook_author}"\
   --syslog
 exit $?
