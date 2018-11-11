@@ -226,19 +226,28 @@ def upsert_rrset():
 
 def slack_webhook():
     slack_data = json.dumps({
-        "attachments": [{
-            "mrkdwn": "true",
-            "author_name": webhook_author,
-            "fallback": "## DNS Update received\n",
-            "pretext": "##### Route53 DynDNS activity #####",
-            "title": "DNS Update pushed via " + dns_ns,
-            "title_link" : "https://aws.amazon.com/route53/",
-            "text": "*User:* " + fqdn.split('.')[0].title() +"\n*Old IP:* " + dns_ip + "\n*Current IP:* " + new_ip,
-            "footer": "Slack API",
-            "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png",
-            "ts": int(time.time()),
-            "color": "#7CD197",
-        }]
+        "attachments": [
+            {
+                "mrkdwn": "true",
+                "author_name": webhook_author,
+                "fallback": "## DNS Update received\n",
+                "pretext": "##### Route53 DynDNS activity #####",
+                "title": "DNS Update pushed via " + dns_ns,
+                "title_link" : "https://aws.amazon.com/route53/",
+                "text": "*User:* " + fqdn.split('.')[0].title() +"\n*Old IP:* " + dns_ip + "\n*Current IP:* " + new_ip,
+                "footer": "Slack API",
+                "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png",
+                "ts": int(time.time()),
+                "color": "#7CD197",
+                "actions": [
+                    {
+                        "type": "button",
+                        "text": ":pencil2: Get the code",
+                        "url": "https://github.com/phoenix0984"
+                    }
+                ]
+            }
+        ]
     }, indent=4)
     slack_headers = {'Content-Type': 'application/json', 'Accept': 'text/plain'}
 
