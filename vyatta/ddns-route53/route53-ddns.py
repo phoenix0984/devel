@@ -229,7 +229,8 @@ def slack_webhook():
         "attachments": [
             {
                 "mrkdwn": "true",
-                "author_name": webhook_author,
+                "author_name": "Route53 Robot",
+                "author_link": "https://github.com/phoenix0984/devel",
                 "fallback": "## DNS Update received\n",
                 "pretext": "##### Route53 DynDNS activity #####",
                 "title": "DNS Update pushed via " + dns_ns,
@@ -239,13 +240,13 @@ def slack_webhook():
                 "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png",
                 "ts": int(time.time()),
                 "color": "#7CD197",
-                "actions": [
-                    {
-                        "type": "button",
-                        "text": ":pencil2: Get the code",
-                        "url": "https://github.com/phoenix0984"
-                    }
-                ]
+                # "actions": [
+                #     {
+                #         "type": "button",
+                #         "text": ":pencil2: Get the code",
+                #         "url": "https://github.com/phoenix0984"
+                #     }
+                # ]
             }
         ]
     }, indent=4)
