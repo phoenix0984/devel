@@ -229,7 +229,7 @@ def slack_webhook():
         "attachments": [
             {
                 "mrkdwn": "true",
-                "author_name": "Route53 Robot",
+                "author_name": "@Route53 Robot",
                 "author_link": "https://github.com/phoenix0984/devel",
                 "fallback": "## DNS Update received\n",
                 "pretext": "##### Route53 DynDNS activity #####",
